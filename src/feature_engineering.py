@@ -1,16 +1,45 @@
 import pandas as pd
-def create_monthly_intermediate_summary(input_file, output_file, chunksize=100_000,append=False):
+#for seasonal anlysis only 
+def add_season_column(df):
+    season_map = {
+        12: "Winter",
+        1: "Winter",
+        2: "Winter",
+
+        3: "Summer",
+        4: "Summer",
+        5: "Summer",
+
+        6: "Monsoon",
+        7: "Monsoon",
+        8: "Monsoon",
+        9: "Monsoon",
+
+        10: "Post-Monsoon",
+        11: "Post-Monsoon"
+    }
+
+    df["season"] = df["month"].map(season_map)
+
+    return df
+
+def create_intermediate_summary(input_file, output_file,group_columns,chunksize=100_000,append=False,transform_fn=None):
     """we are going to process the file chunk by chunk so going to save the the summary of each chunk in intermediate file and then by processing it going to save in final file
     we have to make the intermediate file cause of chunking we cant directly do average otherwise it will get wrong """
     """"Creates chunk-level monthly summaries."""
+
 
     first_chunk = not append
 
     for chunk_number, chunk in enumerate(pd.read_csv(input_file, chunksize=chunksize),start=1):
         print(f"Processing Chunk {chunk_number}...")
 
+        if transform_fn is not None:
+            chunk = transform_fn(chunk)     #as we are adding the seasons so only for seasonal file we need this so while executing we are naming it with seasons
+
+
         chunk_summary = (
-            chunk.groupby(["commodity", "year", "month"])
+            chunk.groupby(group_columns)
             .agg(
                 modal_sum=("modal_price", "sum"),
                 modal_count=("modal_price", "count"),
@@ -37,9 +66,9 @@ def create_monthly_intermediate_summary(input_file, output_file, chunksize=100_0
 
 #to convert the intermediate file data to data required to do analysis of commodity monthly prices
 
-def create_monthly_price_summary(intermediate_file,output_file):
+def create_final_summary(intermediate_file,output_file, group_columns):
     df = pd.read_csv(intermediate_file)
-    monthly_summary = (df.groupby(["commodity", "year", "month"],as_index=False)
+    monthly_summary = (df.groupby(group_columns,as_index=False)
         .agg(
             modal_sum=("modal_sum", "sum"),
             modal_count=("modal_count", "sum"),
@@ -67,7 +96,7 @@ def create_monthly_price_summary(intermediate_file,output_file):
         monthly_summary["max_count"]
     )
 
-    monthly_summary = monthly_summary[["commodity","year","month","avg_modal_price","avg_min_price","avg_max_price"]]
+    monthly_summary = monthly_summary[group_columns + ["avg_modal_price","avg_min_price","avg_max_price"]]
     monthly_summary.to_csv(output_file,index=False)
 
-    print("Monthly summary created successfully.")
+    print("final summary created successfully.")
