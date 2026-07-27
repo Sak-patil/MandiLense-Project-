@@ -86,7 +86,7 @@ def validate_chunk(df):
 
     return quality_report
 
-def process_2025_file(
+def process_file(
     input_file,
     output_file,
     chunksize=100_000
