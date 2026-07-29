@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 #for seasonal anlysis only 
 def add_season_column(df):
     season_map = {
@@ -100,3 +101,142 @@ def create_final_summary(intermediate_file,output_file, group_columns):
     monthly_summary.to_csv(output_file,index=False)
 
     print("final summary created successfully.")
+
+
+#for commodity statistics analysis intermediate file 
+def create_statistics_intermediate(
+    input_file,
+    output_file,
+    group_columns,
+    chunksize=100_000,
+    append=False
+):
+    """
+    Creates chunk-level statistics required to calculate
+    mean, variance, standard deviation and coefficient of variation.
+
+    For each chunk, it stores:
+    - Count
+    - Sum
+    - Sum of Squares
+    - Minimum
+    - Maximum
+    """
+
+    first_chunk = not append
+
+    for chunk_number, chunk in enumerate(
+        pd.read_csv(input_file, chunksize=chunksize),
+        start=1
+    ):
+
+        print(f"Processing Chunk {chunk_number}...")
+
+        # Create squared values
+        chunk["modal_price_square"] = chunk["modal_price"] ** 2
+
+        # Aggregate statistics for this chunk
+        chunk_summary = (
+            chunk.groupby(group_columns)
+            .agg(
+                modal_count=("modal_price", "count"),
+                modal_sum=("modal_price", "sum"),
+                modal_sum_of_squares=("modal_price_square", "sum"),
+                modal_min=("modal_price", "min"),
+                modal_max=("modal_price", "max")
+            )
+            .reset_index()
+        )
+
+        # Save chunk summary
+        chunk_summary.to_csv(
+            output_file,
+            mode="w" if first_chunk else "a",
+            header=first_chunk,
+            index=False
+        )
+
+        first_chunk = False
+
+    print("Statistics intermediate file created successfully.")
+
+#Commodity statistics final file 
+def create_statistics_summary(
+    intermediate_file,
+    output_file,
+    group_columns
+):
+    """
+    Combines chunk-level statistics and calculates
+    Mean, Variance, Standard Deviation and
+    Coefficient of Variation.
+    """
+
+    # Read intermediate file
+    df = pd.read_csv(intermediate_file)
+
+    # Merge statistics of all chunks
+    statistics_summary = (
+        df.groupby(group_columns, as_index=False)
+        .agg(
+            modal_count=("modal_count", "sum"),
+            modal_sum=("modal_sum", "sum"),
+            modal_sum_of_squares=("modal_sum_of_squares", "sum"),
+            modal_min=("modal_min", "min"),
+            modal_max=("modal_max", "max")
+        )
+    )
+
+    # Mean
+    statistics_summary["mean_price"] = (
+        statistics_summary["modal_sum"] /
+        statistics_summary["modal_count"]
+    )
+
+    # Population Variance
+    statistics_summary["variance"] = (
+        statistics_summary["modal_sum_of_squares"] /
+        statistics_summary["modal_count"]
+    ) - (
+        statistics_summary["mean_price"] ** 2
+    )
+
+    # Small negative values can occur due to floating-point precision
+    statistics_summary["variance"] = (
+        statistics_summary["variance"]
+        .clip(lower=0)
+    )
+
+    # Standard Deviation
+    statistics_summary["standard_deviation"] = np.sqrt(
+        statistics_summary["variance"]
+    )
+
+    # Coefficient of Variation
+    statistics_summary["coefficient_of_variation"] = (
+        statistics_summary["standard_deviation"] /
+        statistics_summary["mean_price"]
+    ) * 100
+
+    # Select final columns
+    statistics_summary = statistics_summary[
+        [
+            "commodity",
+            "year",
+            "modal_count",
+            "mean_price",
+            "modal_min",
+            "modal_max",
+            "variance",
+            "standard_deviation",
+            "coefficient_of_variation",
+        ]
+    ]
+
+    # Save final statistics
+    statistics_summary.to_csv(
+        output_file,
+        index=False
+    )
+
+    print("Statistics summary created successfully.")
