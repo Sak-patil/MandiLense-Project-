@@ -204,7 +204,7 @@ def create_statistics_summary(
     # Small negative values can occur due to floating-point precision
     statistics_summary["variance"] = (
         statistics_summary["variance"]
-        .clip(lower=0)
+        .clip(lower=0)     #if varience get very near to zero dur to floating point precision in computer it makes it negative so .clip makes it zero
     )
 
     # Standard Deviation
