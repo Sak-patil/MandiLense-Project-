@@ -33,19 +33,6 @@ An interactive **Streamlit web dashboard** lets users enter market data and get 
 
 ---
 
-## 🖥️ Screenshots
-
-> Run `streamlit run app.py` and open http://localhost:8501 to see the live app.
-
-The app has 5 pages:
-- **🏠 Home** — Project overview, data stats, pipeline explanation, and a jargon buster.
-- **🎯 Price Direction Predictor** — Enter market details → get Increase/Decrease/Stable prediction with confidence chart.
-- **💰 Price Estimator** — Enter market details → get estimated next-month price in ₹.
-- **🧩 Crop Groups** — Interactive scatter plot showing how 329 crops cluster into 3 natural groups.
-- **📊 How Good Are Our Models?** — Confusion matrix, feature importance, error metrics, and elbow/silhouette analysis.
-
----
-
 ## 🚀 Quick Start
 
 ### Prerequisites
